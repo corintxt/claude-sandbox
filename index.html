@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palette Squares</title>
+<style>
+  :root { --bg: #f6f5f2; --fg: #222; --muted: #777; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #17171a; --fg: #eee; --muted: #999; } }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 24px; padding: 16px;
+    background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  h1 { margin: 0; font-size: 1.4rem; font-weight: 600; }
+  #grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+    width: min(92vw, 420px);
+  }
+  .sq {
+    aspect-ratio: 1; border-radius: 10px; border: 0; cursor: pointer;
+    transition: background-color .5s ease, transform .15s ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+  }
+  .sq:hover { transform: scale(1.06); }
+  #meta { color: var(--muted); font-size: .9rem; min-height: 1.2em; }
+  button#new {
+    font: inherit; font-weight: 600; padding: 12px 28px; border-radius: 999px;
+    border: 0; cursor: pointer; color: #fff; background: #333;
+    transition: transform .1s ease;
+  }
+  button#new:active { transform: scale(.96); }
+  @media (prefers-color-scheme: dark) { button#new { background: #eee; color: #111; } }
+</style>
+</head>
+<body>
+  <h1>Palette Squares</h1>
+  <div id="grid" aria-live="polite"></div>
+  <div id="meta"></div>
+  <button id="new">New palette</button>
+
+<script>
+const COUNT = 25;
+const grid = document.getElementById('grid');
+const meta = document.getElementById('meta');
+
+const rand = (a, b) => a + Math.random() * (b - a);
+const hsl = (h, s, l) => `hsl(${Math.round((h % 360 + 360) % 360)} ${Math.round(s)}% ${Math.round(l)}%)`;
+
+// Harmony schemes: hue offsets relative to a random base hue.
+const SCHEMES = {
+  Analogous:      [-30, -15, 0, 15, 30],
+  Complementary:  [0, 0, 180, 180, 15],
+  Triadic:        [0, 120, 240],
+  "Split-complementary": [0, 150, 210],
+  Tetradic:       [0, 90, 180, 270],
+  Monochromatic:  [0, 0, 0],
+};
+
+function makePalette() {
+  const names = Object.keys(SCHEMES);
+  const name = names[Math.floor(Math.random() * names.length)];
+  const base = rand(0, 360);
+  const hues = SCHEMES[name].map(o => base + o);
+  // A shared saturation band keeps the palette cohesive; lightness varies for depth.
+  const sat = rand(45, 75);
+  const colors = [];
+  for (let i = 0; i < COUNT; i++) {
+    const h = hues[i % hues.length] + rand(-6, 6);
+    const l = rand(30, 82);
+    colors.push(hsl(h, sat + rand(-10, 10), l));
+  }
+  // Shuffle so hues aren't in rigid columns.
+  for (let i = colors.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [colors[i], colors[j]] = [colors[j], colors[i]];
+  }
+  return { name, colors };
+}
+
+for (let i = 0; i < COUNT; i++) {
+  const s = document.createElement('button');
+  s.className = 'sq';
+  s.addEventListener('click', () => {
+    navigator.clipboard?.writeText(s.dataset.color).then(() => {
+      meta.textContent = `Copied ${s.dataset.color}`;
+    }).catch(() => {});
+  });
+  grid.appendChild(s);
+}
+
+function render() {
+  const { name, colors } = makePalette();
+  [...grid.children].forEach((s, i) => {
+    s.style.backgroundColor = colors[i];
+    s.dataset.color = colors[i];
+    s.setAttribute('aria-label', `Square color ${colors[i]}`);
+  });
+  meta.textContent = `${name} palette · click a square to copy its color`;
+}
+
+document.getElementById('new').addEventListener('click', render);
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); render(); }
+});
+render();
+</script>
+</body>
+</html>
